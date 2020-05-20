@@ -1,0 +1,8 @@
+FROM mariadb
+
+ENV MYSQL_ROOT_PASSWORD  I_am_admin_4711
+ENV MYSQL_DATABASE typo3
+ENV MYSQL_USER typo3
+ENV MYSQL_PASSWORD Typo3*1234
+
+COPY ./config/ /etc/mysql/conf.d
