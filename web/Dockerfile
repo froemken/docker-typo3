@@ -34,8 +34,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN mkdir /var/www/html/typo3
 RUN cd /var/www/html
 RUN composer create-project typo3/cms-base-distribution typo3 ^10.4
-RUN chown -R www-data:www-data /var/www/html/typo3
-
 COPY ./src/ /var/www/html/typo3/public
+RUN chown -R www-data:www-data /var/www/html/typo3
 
 WORKDIR /var/www/html
