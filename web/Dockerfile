@@ -4,7 +4,7 @@ EXPOSE 80
 
 # Install production php.ini and override with custom settings
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
-COPY php/typo3.ini $PHP_INI_DIR/conf.d/
+COPY ./php/ $PHP_INI_DIR/conf.d/
 
 # Set Apache User and Group
 ENV APACHE_RUN_USER www-data
@@ -23,7 +23,10 @@ RUN apt-get install -y libfreetype6-dev libjpeg62-turbo-dev libpng-dev
 RUN apt-get install -y git graphicsmagick
 RUN apt-get install -y libicu-dev
 
-# INstall PHP Extensions
+# Install and enable APCu
+RUN pecl install apcu && docker-php-ext-enable apcu
+
+# Install PHP Extensions
 RUN docker-php-ext-configure gd --with-jpeg-dir=/usr/include/ --with-freetype-dir=/usr/include/
 RUN docker-php-ext-install -j$(nproc) gd zip opcache intl mysqli
 
@@ -32,9 +35,13 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 # Install TYPO3
 RUN mkdir /var/www/html/typo3
-RUN cd /var/www/html
-RUN composer create-project typo3/cms-base-distribution typo3 ^10.4
+RUN cd /var/www/html && composer create-project typo3/cms-base-distribution typo3 ^10.4 && rm -rf /var/www/html/typo3/var/cache
+WORKDIR /var/www/html/typo3
+
+# Add sysext lowlevel and scheduler
+RUN cd /var/www/html/typo3 && composer req typo3/cms-lowlevel ^10.4 typo3/cms-scheduler ^10.4
+
+# Copy over FIRST_INSTALL and AdditionalConfiguration and adjust user rights for web-user
 COPY ./src/ /var/www/html/typo3/public
 RUN chown -R www-data:www-data /var/www/html/typo3
 
-WORKDIR /var/www/html
