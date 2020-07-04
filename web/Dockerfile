@@ -2,6 +2,8 @@ FROM php:7.3-apache
 LABEL maintainer="Stefan Froemken <froemken@gmail.com>"
 EXPOSE 80
 
+RUN alias ll='ls -al'
+
 # Install production php.ini and override with custom settings
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY ./php/ $PHP_INI_DIR/conf.d/
@@ -22,6 +24,7 @@ RUN apt-get install -y zip unzip libzip-dev
 RUN apt-get install -y libfreetype6-dev libjpeg62-turbo-dev libpng-dev
 RUN apt-get install -y git graphicsmagick
 RUN apt-get install -y libicu-dev
+RUN apt-get install -y vim nano
 
 # Install and enable APCu
 RUN pecl install apcu && docker-php-ext-enable apcu
@@ -33,15 +36,19 @@ RUN docker-php-ext-install -j$(nproc) gd zip opcache intl mysqli
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+# Configure www-data environment
+RUN chown -R www-data:www-data /var/www/ && chmod -R 770 /var/www/
+
 # Install TYPO3
-RUN mkdir /var/www/html/typo3
-RUN cd /var/www/html && composer create-project typo3/cms-base-distribution typo3 ^10.4 && rm -rf /var/www/html/typo3/var/cache
-WORKDIR /var/www/html/typo3
+USER www-data
+RUN cd /var/www/html && \
+    composer create-project typo3/cms-base-distribution typo3 ^10.4 --profile -vvv && \
+    cd /var/www/html/typo3 && \
+    composer req typo3/cms-lowlevel ^10.4 typo3/cms-scheduler ^10.4 --profile -vvv
 
-# Add sysext lowlevel and scheduler
-RUN cd /var/www/html/typo3 && composer req typo3/cms-lowlevel ^10.4 typo3/cms-scheduler ^10.4
-
-# Copy over FIRST_INSTALL and AdditionalConfiguration and adjust user rights for web-user
+USER root
 COPY ./src/ /var/www/html/typo3/public
-RUN chown -R www-data:www-data /var/www/html/typo3
+COPY ./setup-typo3.sh /usr/local/bin/
+RUN chown -R www-data:www-data /var/www/html/typo3/public/typo3conf/
+WORKDIR /var/www/html/typo3
 
